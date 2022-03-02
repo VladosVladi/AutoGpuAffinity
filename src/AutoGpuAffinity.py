@@ -18,7 +18,7 @@ version = '2.0.0'
 
 if ctypes.windll.shell32.IsUserAnAdmin() == False:
     print('Administrator privileges required.')
-    exit()
+    quit()
 
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     os.chdir(sys._MEIPASS)
@@ -33,7 +33,7 @@ args = parser.parse_args()
 
 if bool(args.version):
     print(f'Current version: {version}')
-    exit()
+    quit()
 
 def writeKey(path, valueName, dataType, valueData):
     with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, path) as key:
