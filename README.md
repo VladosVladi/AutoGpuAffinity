@@ -2,7 +2,7 @@
 
 <img src="./img/exampleoutput.png" width="1000"> 
 
-CLI tool to automatically benchmark the most performant core based on lows/percentile fps in liblava.
+CLI tool to automatically benchmark the most performant core based on lows/percentile fps in [liblava](https://github.com/liblava/liblava).
 
 Contact: https://twitter.com/amitxv
 

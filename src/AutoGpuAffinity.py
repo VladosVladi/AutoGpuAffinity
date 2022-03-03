@@ -15,13 +15,14 @@ import ctypes
 import sys
 import requests
 import webbrowser
+import platform
 
 version = '2.0.1'
 
 data = requests.get('https://api.github.com/repos/amitxv/AutoGpuAffinity/releases/latest')
 if data.json()['tag_name'] != version:
     update_available = True
-    webbrowser.open("https://github.com/amitxv/AutoGpuAffinity/releases/latest")
+    webbrowser.open('https://github.com/amitxv/AutoGpuAffinity/releases/latest')
 else:
     update_available = False
 
@@ -251,6 +252,17 @@ os.system('mode 300, 1000')
 for item in gpu_info:
     deleteKey(f'SYSTEM\\ControlSet001\\Enum\\{item.PnPDeviceID}\\Device Parameters\\Interrupt Management\\Affinity Policy', 'DevicePolicy')
     deleteKey(f'SYSTEM\\ControlSet001\\Enum\\{item.PnPDeviceID}\\Device Parameters\\Interrupt Management\\Affinity Policy', 'AssignmentSetOverride')
+subprocess.run(['restart64.exe', '/q'])
+
+try:
+    if int(platform.release()) >= 10:
+        highest_fps_color = True
+    else:
+        highest_fps_color = False
+except:
+    highest_fps_color = False
+
+highest_fps_color = False
 
 for column in range(1, len(main_table[0])):
     highest_fps = 0
@@ -260,7 +272,11 @@ for column in range(1, len(main_table[0])):
         if fps > highest_fps:
             highest_fps = fps
             row_index = row
-    main_table[row_index][column] = colored(main_table[row_index][column], 'green')
+    if highest_fps_color:
+        new_value = colored(f'*{main_table[row_index][column]}', highest_fps_color)
+    else:
+        new_value  = f'*{main_table[row_index][column]}'
+    main_table[row_index][column] = new_value
 
 result = f'''
     AutoGpuAffinity {version} Command Line
@@ -276,7 +292,7 @@ result = f'''
 
     > Affinities for all GPUs have been reset to the Windows default (none).
 
-    > Green values in the table below indicate it is the highest value for a given metric/value.
+    > Green or values with a "*" in the table below indicate it is the highest value for a given metric/value. (colored values only supported on Windows 10+)
 
     > Consider running this tool a few more times to see if the same core is consistently performant.
 
