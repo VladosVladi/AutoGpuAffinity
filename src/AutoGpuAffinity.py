@@ -17,7 +17,7 @@ import requests
 import webbrowser
 import platform
 
-version = '2.0.2'
+version = '2.0.3'
 
 data = requests.get('https://api.github.com/repos/amitxv/AutoGpuAffinity/releases/latest')
 if data.json()['tag_name'] != version:
