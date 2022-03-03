@@ -271,7 +271,7 @@ for column in range(1, len(main_table[0])):
             highest_fps = fps
             row_index = row
     if highest_fps_color:
-        new_value = colored(f'*{main_table[row_index][column]}', highest_fps_color)
+        new_value = colored(f'*{main_table[row_index][column]}', 'green')
     else:
         new_value  = f'*{main_table[row_index][column]}'
     main_table[row_index][column] = new_value
