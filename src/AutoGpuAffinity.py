@@ -13,27 +13,36 @@ from termcolor import colored
 from tabulate import tabulate
 import ctypes
 import sys
+import requests
+import webbrowser
 
-version = '2.0.0'
+version = '2.0.1'
+
+data = requests.get('https://api.github.com/repos/amitxv/AutoGpuAffinity/releases/latest')
+if data.json()['tag_name'] != version:
+    update_available = True
+    webbrowser.open("https://github.com/amitxv/AutoGpuAffinity/releases/latest")
+else:
+    update_available = False
 
 if ctypes.windll.shell32.IsUserAnAdmin() == False:
     print('Administrator privileges required.')
-    quit()
+    sys.exit()
 
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     os.chdir(sys._MEIPASS)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--version', action='store_true', help='show version and exit')
-parser.add_argument('-t', '--trials', type=int, metavar='', help='specify the number of trials to benchmark per CPU (default 3)', default=3)
-parser.add_argument('-d', '--duration', metavar='', type=int, help='specify the duration of each trial in seconds (default 30)', default=30)
+parser.add_argument('-t', '--trials', type=int, metavar='', help='specify the number of trials to benchmark per CPU (default 3)', default=3, required=True)
+parser.add_argument('-d', '--duration', metavar='', type=int, help='specify the duration of each trial in seconds (default 30)', default=30, required=True)
 parser.add_argument('-x', '--xperf_log', metavar='', type=bool, help='enable or disable DPC/ISR logging with xperf (Windows ADK required if True) (default True)', default=True)
 parser.add_argument('-c', '--app_caching', metavar='', type=int, help='specify the timeout in seconds for application caching after liblava is launched, reliability of results may be affected negatively if too low (default 20)', default=20)
 args = parser.parse_args()
 
 if bool(args.version):
     print(f'Current version: {version}')
-    quit()
+    sys.exit()
 
 def writeKey(path, valueName, dataType, valueData):
     with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, path) as key:
@@ -110,8 +119,9 @@ else:
 estimated = ((15 + args.app_caching + args.duration) * args.trials) * cores
 
 print_info = f'''
-    AutoGpuAffinity Command Line
+    AutoGpuAffinity {version} Command Line
 
+        Update Available: {update_available}
         Trials: {args.trials}
         Trial Duration: {args.duration} sec
         Cores: {cores}
@@ -192,7 +202,7 @@ while active_thread != threads:
         if xperf:
             subprocess.run([xperf_location, '-on', 'base+interrupt+dpc'])
         try:
-            subprocess.run(['PresentMon.exe', '-stop_existing_session', '-no_top', '-track_debug', '-timed', f'{args.duration}', '-process_name', 'lava-triangle.exe', '-output_file', f'{working_dir}\\raw\\CPU-{active_thread}-Trial-{active_trial}.csv'], timeout=args.duration + 5, **subprocess_null)
+            subprocess.run(['PresentMon.exe', '-stop_existing_session', '-no_top', '-verbose', '-timed', f'{args.duration}', '-process_name', 'lava-triangle.exe', '-output_file', f'{working_dir}\\raw\\CPU-{active_thread}-Trial-{active_trial}.csv'], timeout=args.duration + 5, **subprocess_null)
         except subprocess.TimeoutExpired:
             pass
         if xperf:
@@ -212,8 +222,8 @@ while active_thread != threads:
     frametimes = []
     with open(f'{working_dir}\\aggregated\\CPU-{active_thread}-aggregated.csv', 'r') as f:
         for row in csv.DictReader(f):
-            if row['msBetweenPresents'] is not None:
-                frametimes.append(float(row['msBetweenPresents']))
+            if row['MsBetweenPresents'] is not None:
+                frametimes.append(float(row['MsBetweenPresents']))
     frametimes = sorted(frametimes, reverse=True)
 
     data = []
@@ -253,6 +263,10 @@ for column in range(1, len(main_table[0])):
     main_table[row_index][column] = colored(main_table[row_index][column], 'green')
 
 result = f'''
+    AutoGpuAffinity {version} Command Line
+
+    > Trials: {args.trials}
+    > Trial Duration: {args.duration} sec
 
     > Raw and aggregated data is located in the following directory:
 

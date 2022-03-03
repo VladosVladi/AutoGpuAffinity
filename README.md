@@ -21,6 +21,12 @@ I am not responsible for damage caused to computer. There is a risk of your GPU 
 ## Usage
 - Download the latest release from the [releases tab](https://github.com/amitxv/AutoGpuAffinity/releases).
 
+- Open cmd.exe with administrator privileges and run the following command including quotes (assuming you have downloaded the program to the downloads folder):
+
+    ```
+    "%userprofile%\Downloads\AutoGpuAffinity.exe" -t 3 -d 30
+    ```
+
 - Once you have read the notes, press any key to begin benchmarking.
 
 - After the tool has benchmarked each core, a table will be displayed with the results.
@@ -31,13 +37,13 @@ Run the tool (not trials) two or three times. If the same core is consistently p
 
 ## CLI Arguments
 ````
-usage: AutoGpuAffinity [-h] [-v] [-t] [-d] [-x] [-c]
+usage: AutoGpuAffinity [-h] [-v] -t  -d  [-x] [-c]
 
 optional arguments:
   -h, --help           show this help message and exit
   -v, --version        show version and exit
-  -t , --trials        specify the number of trials to benchmark per CPU (default 3)
-  -d , --duration      specify the duration of each trial in seconds (default 30)
+  -t , --trials        specify the number of trials to benchmark per CPU (3 recommended)
+  -d , --duration      specify the duration of each trial in seconds (30 recommended)
   -x , --xperf_log     enable or disable DPC/ISR logging with xperf (Windows ADK required if True) (default True)
   -c , --app_caching   specify the timeout in seconds for application caching after liblava is launched, reliability
                        of results may be affected negatively if too low (default 20)
