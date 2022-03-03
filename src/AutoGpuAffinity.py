@@ -262,8 +262,6 @@ try:
 except:
     highest_fps_color = False
 
-highest_fps_color = False
-
 for column in range(1, len(main_table[0])):
     highest_fps = 0
     row_index = ''
