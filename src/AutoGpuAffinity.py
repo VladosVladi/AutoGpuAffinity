@@ -17,14 +17,11 @@ import requests
 import webbrowser
 import platform
 
-version = '2.0.3'
+version = '2.1.0'
 
 data = requests.get('https://api.github.com/repos/amitxv/AutoGpuAffinity/releases/latest')
 if data.json()['tag_name'] != version:
-    update_available = True
-    webbrowser.open('https://github.com/amitxv/AutoGpuAffinity/releases/latest')
-else:
-    update_available = False
+    print('\nUpdate available: https://github.com/amitxv/AutoGpuAffinity/releases/latest\n')
 
 if ctypes.windll.shell32.IsUserAnAdmin() == False:
     print('Administrator privileges required.')
@@ -34,16 +31,11 @@ if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     os.chdir(sys._MEIPASS)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-v', '--version', action='store_true', help='show version and exit')
-parser.add_argument('-t', '--trials', type=int, metavar='', help='specify the number of trials to benchmark per CPU (default 3)', default=3, required=True)
-parser.add_argument('-d', '--duration', metavar='', type=int, help='specify the duration of each trial in seconds (default 30)', default=30, required=True)
-parser.add_argument('-x', '--xperf_log', metavar='', type=bool, help='enable or disable DPC/ISR logging with xperf (Windows ADK required if True) (default True)', default=True)
+parser.add_argument('-t', '--trials', type=int, metavar='', help='specify the number of trials to benchmark per CPU (3 recommended)', required=True)
+parser.add_argument('-d', '--duration', metavar='', type=int, help='specify the duration of each trial in seconds (30 recommended)', required=True)
+parser.add_argument('-x', '--disable_xperf', action='store_true', help='disable DPC/ISR logging with xperf', default=False)
 parser.add_argument('-c', '--app_caching', metavar='', type=int, help='specify the timeout in seconds for application caching after liblava is launched, reliability of results may be affected negatively if too low (default 20)', default=20)
 args = parser.parse_args()
-
-if bool(args.version):
-    print(f'Current version: {version}')
-    sys.exit()
 
 def writeKey(path, valueName, dataType, valueData):
     with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, path) as key:
@@ -69,10 +61,11 @@ def getAffinity(thread, return_value):
     elif return_value == 'hex':
         return le_hex
 
-def killProcess(name):
+def killProcesses():
     for p in psutil.process_iter():
-        if p.name() == name:
-            p.kill()
+        for target in ('xperf.exe', 'lava-triangle.exe', 'PresentMon.exe'):
+            if p.name() == target:
+                p.kill()
 
 def calc(frametime_data, metric, value=None):
     if metric == 'Max':
@@ -112,33 +105,28 @@ for i in xperf_paths:
     if os.path.exists(i):
         xperf_location = i
 
-if args.xperf_log and bool(xperf_location):
+if not args.disable_xperf and xperf_location is not None:
     xperf = True
 else:
     xperf = False
 
 estimated = ((15 + args.app_caching + args.duration) * args.trials) * cores
+working_dir = f'{os.environ["TEMP"]}\\AutoGpuAffinity{time.strftime("%d%m%y%H%M%S")}'
+print_info = f'''AutoGpuAffinity {version} Command Line
 
-print_info = f'''
-    AutoGpuAffinity {version} Command Line
-
-        Update Available: {update_available}
         Trials: {args.trials}
         Trial Duration: {args.duration} sec
         Cores: {cores}
         Threads: {threads}
         Hyperthreading: {HT}
-        Log DPCs/ISRs (xperf): {args.xperf_log}
+        Log DPCs/ISRs (xperf): {not args.disable_xperf}
         Xperf path: {xperf_location}
+        App Caching Timeout: {args.app_caching}
         Time for completion: {estimated/60:.2f} min
-
-    > Nobody is responsible if you damage your PC or operating system. Run at your own risk.
-    > Do not touch your mouse/keyboard while this tool runs to avoid collecting invalid data.
-    > Close any background apps you have open.
-
-    Press any key to start benchmarking...
+        Session Working directory: "{working_dir}"
 '''
-input(print_info)
+print(print_info)
+input('\tPress enter to start benchmarking...')
 
 lavatriangle_folder = f'{os.environ["USERPROFILE"]}\\AppData\\Roaming\\liblava\\lava triangle'
 try:
@@ -170,7 +158,6 @@ with open(lavatriangle_config, 'a') as f:
     for i in lavatriangle_content:
         f.write(f'{i}\n')
 
-working_dir = f'{os.environ["TEMP"]}\\AutoGpuAffinity{time.strftime("%d%m%y%H%M%S")}'
 os.mkdir(working_dir)
 os.mkdir(f'{working_dir}\\raw')
 if xperf:
@@ -183,9 +170,7 @@ main_table.append(['', 'Max', 'Avg', 'Min', '1 %ile', '0.1 %ile', '0.01 %ile', '
 # kill all processes before loop
 if xperf:
     subprocess.run([xperf_location, '-stop'], **subprocess_null)
-    killProcess('xperf.exe')
-killProcess('lava-triangle.exe')
-killProcess('PresentMon.exe')
+killProcesses()
 
 active_thread = 0
 while active_thread != threads:
@@ -209,10 +194,7 @@ while active_thread != threads:
         if xperf:
             subprocess.run([xperf_location, '-stop'], **subprocess_null)
             subprocess.run([xperf_location, '-i', 'C:\\kernel.etl', '-o', f'{working_dir}\\xperf\\CPU-{active_thread}-Trial-{active_trial}.txt', '-a', 'dpcisr'])
-            killProcess('xperf.exe')
-    killProcess('PresentMon.exe')
-    killProcess('lava-triangle.exe')
-
+    killProcesses()
     CSVs = []
     for trial in range(1, args.trials + 1):
         CSV = f'{working_dir}\\raw\\CPU-{active_thread}-Trial-{trial}.csv'
@@ -276,28 +258,16 @@ for column in range(1, len(main_table[0])):
         new_value  = f'*{main_table[row_index][column]}'
     main_table[row_index][column] = new_value
 
-result = f'''
-    AutoGpuAffinity {version} Command Line
-
-    > Trials: {args.trials}
-    > Trial Duration: {args.duration} sec
-
-    > Raw and aggregated data is located in the following directory:
-
-            {working_dir}
-        
-    > Drag and drop the aggregated data into "https://boringboredom.github.io/Frame-Time-Analysis" for for a graphical representation of the data.
+print_result_info = f'''
+    > Drag and drop the aggregated data (located in the working directory) into "https://boringboredom.github.io/Frame-Time-Analysis" for a graphical representation of the data.
 
     > Affinities for all GPUs have been reset to the Windows default (none).
-
-    > Green or values with a "*" in the table below indicate it is the highest value for a given metric/value. (colored values only supported on Windows 10+)
 
     > Consider running this tool a few more times to see if the same core is consistently performant.
 
     > If you see absurdly low values for 0.005% Lows, you should discard the results and re-run the tool.
-
 '''
 
-print(result)
+print(print_info)
 print(tabulate(main_table, headers='firstrow', tablefmt='fancy_grid', floatfmt='.2f'), '\n')
-input('Press any key to exit...')
+print(print_result_info)
